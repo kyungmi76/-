@@ -31,7 +31,7 @@ universities:
   yonsei:
     name: "연세대학교"
     enabled: true
-    target_datetime: "2026-04-18 10:00:00"  # 신청 목표 일시
+    target_datetime: "2026-03-30 10:00:00"  # 신청 목표 일시
 
     login:
       id: "YONSEI_ID"
@@ -59,7 +59,7 @@ universities:
   korea:
     name: "고려대학교"
     enabled: true
-    target_datetime: "2026-04-25 10:00:00"
+    target_datetime: "2026-04-02 10:00:00"
 
     login:
       id: "KOREA_ID"
@@ -84,7 +84,7 @@ universities:
   kyunghee:
     name: "경희대학교"
     enabled: true
-    target_datetime: "2026-05-30 13:00:00"
+    target_datetime: "2026-04-20 16:00:00"
 
     login:
       id: "KHU_ID"
