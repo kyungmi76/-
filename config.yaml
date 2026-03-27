@@ -1,28 +1,108 @@
-# ========================================
-# 연세대학교 입학설명회 자동신청 봇 설정
-# ========================================
+# ============================================================
+# 대학 입학설명회 자동신청 봇 설정
+# ============================================================
+# 사용 전 반드시 확인:
+#   1. 각 대학 login.id / login.password 입력
+#   2. applicant (신청자 정보) 입력
+#   3. python bot.py --setup  으로 셀렉터 테스트 후 실행
+# ============================================================
 
-# 로그인 정보 (연세대 입학처 회원)
-login:
-  id: "YOUR_ID"
-  password: "YOUR_PASSWORD"
-
-# 신청자 정보 (폼에 자동으로 입력될 내용)
+# ── 공통 신청자 정보 ──────────────────────────────────────
 applicant:
   name: "홍길동"
   phone: "010-0000-0000"
   email: "example@email.com"
-  school: "OO고등학교"        # 재학/졸업 고교명
-  grade: "3"                  # 학년 (1, 2, 3 또는 졸업)
-  region: "서울"              # 거주 지역
+  school: "OO고등학교"     # 재학/졸업 고교
+  grade: "3"               # 학년 (1 / 2 / 3 / 졸업)
+  region: "서울"           # 거주 지역
 
-# 봇 동작 설정
+# ── 봇 동작 설정 ──────────────────────────────────────────
 bot:
-  check_interval: 60          # 설명회 확인 주기 (초). 기본 60초
-  headless: false             # false = 브라우저 화면 표시 (권장), true = 백그라운드 실행
-  timeout: 15000              # 페이지 로딩 최대 대기 시간 (ms)
+  headless: false          # false = 브라우저 화면 표시(권장), true = 백그라운드
+  timeout: 20000           # 페이지 로딩 최대 대기 (ms)
+  retry_interval: 5        # 신청 실패 시 재시도 간격 (초)
+  max_retries: 30          # 최대 재시도 횟수 (30회 × 5초 = 2분 30초)
+  early_start_minutes: 3   # 신청 시작 N분 전에 브라우저 열고 대기
 
-# 대상 설명회 필터 (빈 리스트면 모든 설명회 신청)
-# 특정 키워드가 제목에 포함된 설명회만 신청
-target_keywords:
-  - ""                        # 예: "수시", "정시", "학생부종합" 등
+# ── 대학별 설정 ───────────────────────────────────────────
+universities:
+
+  # 연세대학교 -----------------------------------------------
+  yonsei:
+    name: "연세대학교"
+    enabled: true
+    target_datetime: "2026-04-18 10:00:00"  # 신청 목표 일시
+
+    login:
+      id: "YONSEI_ID"
+      password: "YONSEI_PW"
+      url: "https://admission.yonsei.ac.kr/seoul/admission/html/member/login.asp"
+      id_selector: "input[name='id'], input[name='userId'], input[type='text']"
+      pw_selector: "input[name='pw'], input[name='userPw'], input[type='password']"
+      submit_selector: "button[type='submit'], input[type='submit'], a:has-text('로그인')"
+      success_check: "a:has-text('로그아웃'), a:has-text('마이페이지')"
+
+    seminar:
+      # 설명회 목록/신청 페이지 URL (브라우저로 열어서 직접 확인 후 입력)
+      url: "https://admission.yonsei.ac.kr/seoul/admission/html/info/seminar.asp"
+      # 신청 버튼 셀렉터
+      apply_btn_selector: "a:has-text('신청'), button:has-text('신청'), a:has-text('접수')"
+      # 신청 폼 필드 (name 속성 기준)
+      form_fields:
+        name: "name,userName,applicantName"
+        phone: "phone,tel,mobile,hp,cellphone"
+        email: "email,mail,userEmail"
+        school: "school,highSchool,schoolName"
+        grade: "grade,schoolGrade"
+
+  # 고려대학교 -----------------------------------------------
+  korea:
+    name: "고려대학교"
+    enabled: true
+    target_datetime: "2026-04-25 10:00:00"
+
+    login:
+      id: "KOREA_ID"
+      password: "KOREA_PW"
+      url: "https://oku.korea.ac.kr/oku/login.do"
+      id_selector: "input[name='id'], input[name='userId'], input[id='id']"
+      pw_selector: "input[name='pw'], input[name='password'], input[type='password']"
+      submit_selector: "button[type='submit'], input[type='submit'], a:has-text('로그인')"
+      success_check: "a:has-text('로그아웃'), a:has-text('마이페이지'), span:has-text('님')"
+
+    seminar:
+      url: "https://oku.korea.ac.kr/oku/index.do"
+      apply_btn_selector: "a:has-text('신청'), button:has-text('신청'), a:has-text('접수'), a:has-text('참가신청')"
+      form_fields:
+        name: "name,userName,applicantName"
+        phone: "phone,tel,mobile,hp"
+        email: "email,mail,userEmail"
+        school: "school,highSchool,schoolName"
+        grade: "grade,schoolGrade"
+
+  # 경희대학교 -----------------------------------------------
+  kyunghee:
+    name: "경희대학교"
+    enabled: true
+    target_datetime: "2026-05-30 13:00:00"
+
+    login:
+      id: "KHU_ID"
+      password: "KHU_PW"
+      # 로그인 없이 직접 신청 가능한 경우 url을 비워두세요
+      url: "https://iphak.khu.ac.kr/login.do"
+      id_selector: "input[name='id'], input[name='userId'], input[type='text']"
+      pw_selector: "input[name='pw'], input[name='password'], input[type='password']"
+      submit_selector: "button[type='submit'], input[type='submit'], a:has-text('로그인')"
+      success_check: "a:has-text('로그아웃'), a:has-text('마이페이지')"
+
+    seminar:
+      # 경희대는 board_seq가 바뀔 수 있으므로 목록 페이지도 함께 설정
+      url: "https://iphak.khu.ac.kr/detail.do?menuurl=KnGkqceB267fZdhM2T482w%3D%3D&board_seq=16744&pageNo=1&categoryid=42&userpwd="
+      apply_btn_selector: "a:has-text('신청'), button:has-text('신청'), input[type='submit'], a:has-text('접수'), a:has-text('참가신청')"
+      form_fields:
+        name: "name,userName,applicantName"
+        phone: "phone,tel,mobile,hp"
+        email: "email,mail"
+        school: "school,highSchool"
+        grade: "grade"
