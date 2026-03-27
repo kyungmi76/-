@@ -19,13 +19,28 @@ bot:
   max_retries: 36          # 최대 재시도 횟수 (36회 × 5초 = 3분)
   early_start_minutes: 3   # 신청 시작 N분 전에 브라우저 열고 대기
 
+# ── 이메일 알림 설정 ──────────────────────────────────────
+# 신청 10분 전에 휴대폰으로 알림 이메일 발송
+# Gmail 사용 시: 구글 계정 → 보안 → 앱 비밀번호 생성 후 아래 입력
+email_alert:
+  enabled: true
+  notify_minutes_before: 10        # 신청 시작 10분 전에 발송
+  to: "kmikim@gsgcprp.com"         # 받는 주소 (폰에서 확인할 주소)
+  from_address: "YOUR_GMAIL@gmail.com"   # 보내는 Gmail 주소
+  app_password: "YOUR_APP_PASSWORD"      # Gmail 앱 비밀번호 (16자리)
+
+  # 연세대는 직접 신청 — 알림만 발송
+  manual_alerts:
+    - datetime: "2026-03-30 10:00:00"
+      message: "🔔 지금 바로 연세대 입학설명회 신청하세요!\n👉 https://admission.yonsei.ac.kr/seoul/admission/html/main/main.asp\n신청 설명회: 2026년 4월 18일(토) 오전 10:00"
+
 # ── 대학별 설정 ───────────────────────────────────────────
 universities:
 
   # 연세대학교 -----------------------------------------------
   yonsei:
     name: "연세대학교"
-    enabled: true
+    enabled: false   # 직접 신청 예정 — 이메일 알림만 발송
     # ★ 봇이 접속해서 신청 버튼을 클릭하는 시각 (선착순 시작)
     apply_open_datetime: "2026-03-30 10:00:00"
     # ★ 폼에서 선택할 설명회 날짜 (원하는 회차)

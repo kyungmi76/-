@@ -1,9 +1,9 @@
 """
 대학 입학설명회 자동신청 봇
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  연세대  2026-04-18 10:00
-  고려대  2026-04-25 10:00
-  경희대  2026-05-30 13:00
+  연세대  직접신청 (이메일 알림만)
+  고려대  2026-04-02 10:00 자동신청
+  경희대  2026-04-20 16:00 자동신청
 
 실행:  python bot.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -11,8 +11,10 @@
 
 import asyncio
 import logging
+import smtplib
 import sys
 from datetime import datetime, timedelta
+from email.mime.text import MIMEText
 from pathlib import Path
 
 import yaml
@@ -50,6 +52,66 @@ def make_logger(name: str) -> logging.Logger:
     return logger
 
 root_log = make_logger("봇")
+
+# ─────────────────────────────────────
+# 이메일 알림
+# ─────────────────────────────────────
+def send_email(cfg: dict, subject: str, body: str):
+    """Gmail SMTP로 이메일 발송."""
+    ecfg = cfg.get("email_alert", {})
+    if not ecfg.get("enabled"):
+        return
+    from_addr = ecfg.get("from_address", "")
+    app_pw = ecfg.get("app_password", "")
+    to_addr = ecfg.get("to", "")
+
+    if not from_addr or not app_pw or "YOUR_GMAIL" in from_addr or "YOUR_APP" in app_pw:
+        root_log.warning("이메일 설정이 없습니다. config.yaml > email_alert 확인")
+        return
+    try:
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = from_addr
+        msg["To"] = to_addr
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(from_addr, app_pw)
+            smtp.send_message(msg)
+        root_log.info(f"이메일 발송 완료 → {to_addr}")
+    except Exception as e:
+        root_log.error(f"이메일 발송 실패: {e}")
+
+
+async def run_manual_alerts(cfg: dict):
+    """수동 신청 대상(enabled=false)의 이메일 알림 타이머."""
+    ecfg = cfg.get("email_alert", {})
+    if not ecfg.get("enabled"):
+        return
+    notify_before = ecfg.get("notify_minutes_before", 10)
+    alerts = ecfg.get("manual_alerts", [])
+
+    tasks = []
+    for alert in alerts:
+        alert_dt = datetime.strptime(alert["datetime"], "%Y-%m-%d %H:%M:%S")
+        notify_dt = alert_dt - timedelta(minutes=notify_before)
+        now = datetime.now()
+        if now > alert_dt:
+            continue
+        tasks.append((notify_dt, alert_dt, alert["message"]))
+
+    async def _wait_and_send(notify_dt, alert_dt, message):
+        now = datetime.now()
+        if now < notify_dt:
+            wait_sec = (notify_dt - now).total_seconds()
+            root_log.info(
+                f"[이메일 알림] {alert_dt:%m/%d %H:%M} 신청 {notify_before}분 전 "
+                f"({notify_dt:%H:%M})에 발송 예정"
+            )
+            await asyncio.sleep(wait_sec)
+        subject = f"🔔 [{alert_dt:%m/%d %H:%M}] 지금 신청하세요!"
+        send_email(cfg, subject, message)
+
+    await asyncio.gather(*(_wait_and_send(n, a, m) for n, a, m in tasks))
+
 
 # ─────────────────────────────────────
 # 공통 유틸
@@ -401,12 +463,19 @@ async def main():
         if v.get("enabled", True)
     ]
 
+    ecfg = cfg.get("email_alert", {})
+    notify_min = ecfg.get("notify_minutes_before", 10)
+
     root_log.info("=" * 55)
     root_log.info(" 대학 입학설명회 자동신청 봇 시작")
     for b in bots:
-        root_log.info(f"  [{b.name}] 접수 시작: {b.target_dt:%Y-%m-%d %H:%M} → 신청 설명회: {b.session_date}")
+        root_log.info(f"  [자동] [{b.name}] 접수: {b.target_dt:%m/%d %H:%M} → 설명회: {b.session_date}")
+    for u in cfg.get("universities", {}).values():
+        if not u.get("enabled", True):
+            dt = datetime.strptime(u["apply_open_datetime"], "%Y-%m-%d %H:%M:%S")
+            root_log.info(f"  [알림] [{u['name']}] {dt:%m/%d %H:%M} → {notify_min}분 전 이메일 발송")
     root_log.info("=" * 55)
-    root_log.info("종료하려면 Ctrl+C")
+    root_log.info("종료하려면 Ctrl+C  (컴퓨터를 켜둔 채로 두세요)")
     root_log.info("")
 
     async with async_playwright() as pw:
@@ -414,7 +483,11 @@ async def main():
             headless=cfg["bot"]["headless"],
             args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
         )
-        await asyncio.gather(*(b.run_scheduled(browser) for b in bots))
+        # 자동신청 봇 + 수동알림 이메일 동시 실행
+        await asyncio.gather(
+            *(b.run_scheduled(browser) for b in bots),
+            run_manual_alerts(cfg),
+        )
         await browser.close()
 
     root_log.info("모든 대학 처리 완료.")
