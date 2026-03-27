@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotebookLM 소개</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+      background: #0f0f1a;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .slide-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .slide {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0; left: 0;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .slide.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    /* ── 슬라이드 1: 표지 ── */
+    .slide-1 {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      text-align: center;
+    }
+
+    .slide-1 .logo-area {
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    .notebook-icon {
+      font-size: 80px;
+      display: block;
+      margin-bottom: 16px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .slide-1 h1 {
+      font-size: 64px;
+      font-weight: 800;
+      background: linear-gradient(90deg, #4fc3f7, #b39ddb, #f48fb1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+
+    .slide-1 .subtitle {
+      font-size: 22px;
+      color: #90caf9;
+      letter-spacing: 2px;
+    }
+
+    .slide-1 .tag {
+      margin-top: 32px;
+      display: inline-block;
+      background: rgba(79, 195, 247, 0.15);
+      border: 1px solid rgba(79, 195, 247, 0.4);
+      padding: 8px 24px;
+      border-radius: 100px;
+      font-size: 14px;
+      color: #4fc3f7;
+      letter-spacing: 1px;
+    }
+
+    /* ── 슬라이드 2: NotebookLM이란? ── */
+    .slide-2 {
+      background: linear-gradient(135deg, #1b2838 0%, #1a2744 100%);
+    }
+
+    .slide-title {
+      font-size: 42px;
+      font-weight: 700;
+      margin-bottom: 48px;
+      text-align: center;
+      color: #fff;
+    }
+
+    .slide-title span {
+      background: linear-gradient(90deg, #4fc3f7, #b39ddb);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .definition-box {
+      background: rgba(79, 195, 247, 0.08);
+      border-left: 4px solid #4fc3f7;
+      border-radius: 0 16px 16px 0;
+      padding: 28px 36px;
+      max-width: 800px;
+      margin-bottom: 40px;
+      font-size: 20px;
+      line-height: 1.8;
+      color: #e0f7fa;
+    }
+
+    .cards {
+      display: flex;
+      gap: 24px;
+      max-width: 900px;
+    }
+
+    .card {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+
+    .card:hover { transform: translateY(-4px); }
+
+    .card .icon { font-size: 36px; margin-bottom: 12px; }
+    .card h3 { font-size: 16px; font-weight: 600; color: #90caf9; margin-bottom: 8px; }
+    .card p { font-size: 14px; color: #b0bec5; line-height: 1.6; }
+
+    /* ── 슬라이드 3: 주요 기능 ── */
+    .slide-3 {
+      background: linear-gradient(135deg, #1a1a2e 0%, #212121 100%);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .feature-item {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 28px;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+    }
+
+    .feature-num {
+      font-size: 32px;
+      font-weight: 800;
+      color: rgba(79, 195, 247, 0.3);
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .feature-text h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #e3f2fd;
+    }
+
+    .feature-text p {
+      font-size: 14px;
+      color: #90a4ae;
+      line-height: 1.6;
+    }
+
+    /* ── 슬라이드 4: 활용 사례 ── */
+    .slide-4 {
+      background: linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%);
+    }
+
+    .use-cases {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 800px;
+      width: 100%;
+    }
+
+    .use-case {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 14px;
+      padding: 20px 28px;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .use-case-icon { font-size: 32px; flex-shrink: 0; }
+
+    .use-case-content h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #e3f2fd;
+      margin-bottom: 4px;
+    }
+
+    .use-case-content p {
+      font-size: 14px;
+      color: #78909c;
+    }
+
+    .use-case-badge {
+      margin-left: auto;
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .badge-blue { background: rgba(79, 195, 247, 0.15); color: #4fc3f7; }
+    .badge-purple { background: rgba(179, 157, 219, 0.15); color: #b39ddb; }
+    .badge-green { background: rgba(129, 199, 132, 0.15); color: #81c784; }
+    .badge-orange { background: rgba(255, 183, 77, 0.15); color: #ffb74d; }
+
+    /* ── 슬라이드 5: 시작하기 ── */
+    .slide-5 {
+      background: linear-gradient(135deg, #0f3460 0%, #16213e 50%, #1a1a2e 100%);
+      text-align: center;
+    }
+
+    .steps {
+      display: flex;
+      gap: 0;
+      max-width: 900px;
+      width: 100%;
+      margin-top: 40px;
+    }
+
+    .step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+    }
+
+    .step:not(:last-child)::after {
+      content: '→';
+      position: absolute;
+      right: -12px;
+      top: 28px;
+      font-size: 24px;
+      color: rgba(79, 195, 247, 0.4);
+    }
+
+    .step-circle {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4fc3f7, #b39ddb);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0 auto 16px;
+    }
+
+    .step h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #e3f2fd;
+      margin-bottom: 8px;
+    }
+
+    .step p {
+      font-size: 13px;
+      color: #78909c;
+      padding: 0 8px;
+      line-height: 1.5;
+    }
+
+    .cta-area {
+      margin-top: 48px;
+    }
+
+    .cta-url {
+      font-size: 22px;
+      color: #4fc3f7;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .cta-note {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #546e7a;
+    }
+
+    /* ── 네비게이션 ── */
+    .nav {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 100;
+    }
+
+    .nav-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      padding: 10px 28px;
+      border-radius: 100px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .nav-btn:hover {
+      background: rgba(79, 195, 247, 0.2);
+      border-color: #4fc3f7;
+    }
+
+    .nav-dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .dot.active {
+      background: #4fc3f7;
+      width: 24px;
+      border-radius: 4px;
+    }
+
+    .slide-counter {
+      position: fixed;
+      top: 24px;
+      right: 32px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.3);
+      z-index: 100;
+    }
+
+    .google-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 6px 16px;
+      border-radius: 100px;
+      font-size: 13px;
+      color: #90a4ae;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ──────────────── 슬라이드 1: 표지 ──────────────── -->
+<div class="slide slide-1 active" id="slide-1">
+  <div class="logo-area">
+    <span class="notebook-icon">📓</span>
+  </div>
+  <h1>NotebookLM</h1>
+  <p class="subtitle">AI가 당신의 문서를 읽고, 이해하고, 대화합니다</p>
+  <div class="google-badge">🔵 Powered by Google Gemini</div>
+  <span class="tag">✨ 나만의 AI 연구 파트너</span>
+</div>
+
+<!-- ──────────────── 슬라이드 2: What is? ──────────────── -->
+<div class="slide slide-2" id="slide-2">
+  <h2 class="slide-title"><span>NotebookLM</span>이란?</h2>
+  <div class="definition-box">
+    Google이 만든 <strong>AI 기반 문서 분석 도구</strong>입니다.<br>
+    내가 업로드한 자료를 학습해 <strong>질문에 답하고, 요약하고, 아이디어를 연결</strong>해 주는<br>
+    나만의 전용 AI 어시스턴트입니다.
+  </div>
+  <div class="cards">
+    <div class="card">
+      <div class="icon">📂</div>
+      <h3>내 자료 기반</h3>
+      <p>PDF, 문서, 웹 링크 등을<br>직접 업로드해 사용</p>
+    </div>
+    <div class="card">
+      <div class="icon">🤖</div>
+      <h3>Gemini 1.5 Pro</h3>
+      <p>Google 최신 AI 모델로<br>정확한 답변 제공</p>
+    </div>
+    <div class="card">
+      <div class="icon">🔒</div>
+      <h3>출처 보장</h3>
+      <p>모든 답변에 원문 출처를<br>인용해서 보여줌</p>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── 슬라이드 3: 주요 기능 ──────────────── -->
+<div class="slide slide-3" id="slide-3">
+  <h2 class="slide-title">🛠 <span>주요 기능</span></h2>
+  <div class="features-grid">
+    <div class="feature-item">
+      <div class="feature-num">01</div>
+      <div class="feature-text">
+        <h3>문서 기반 Q&A</h3>
+        <p>업로드한 자료에서만 답변을 생성해 <br>할루시네이션(환각) 최소화</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-num">02</div>
+      <div class="feature-text">
+        <h3>자동 요약 & 브리핑</h3>
+        <p>문서 전체를 한눈에 볼 수 있는<br>스마트 요약 자동 생성</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-num">03</div>
+      <div class="feature-text">
+        <h3>오디오 오버뷰 🎙</h3>
+        <p>AI 두 명이 대화 형식으로<br>내용을 설명하는 팟캐스트 생성</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-num">04</div>
+      <div class="feature-text">
+        <h3>마인드맵 & 아웃라인</h3>
+        <p>개념 정리, 학습 가이드,<br>타임라인 등 자동 구조화</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── 슬라이드 4: 활용 사례 ──────────────── -->
+<div class="slide slide-4" id="slide-4">
+  <h2 class="slide-title">💡 <span>이런 분께 추천해요</span></h2>
+  <div class="use-cases">
+    <div class="use-case">
+      <div class="use-case-icon">🎓</div>
+      <div class="use-case-content">
+        <h3>학생 / 연구자</h3>
+        <p>논문, 교재를 업로드해 핵심 개념 질의응답, 요약 노트 생성</p>
+      </div>
+      <span class="use-case-badge badge-blue">학습 효율 ↑</span>
+    </div>
+    <div class="use-case">
+      <div class="use-case-icon">💼</div>
+      <div class="use-case-content">
+        <h3>직장인 / 기획자</h3>
+        <p>보고서, 회의록, 기획안을 분석해 인사이트와 액션 아이템 도출</p>
+      </div>
+      <span class="use-case-badge badge-purple">업무 생산성</span>
+    </div>
+    <div class="use-case">
+      <div class="use-case-icon">✍️</div>
+      <div class="use-case-content">
+        <h3>콘텐츠 크리에이터</h3>
+        <p>자료 조사·정리를 AI에게 맡기고 창작에 집중</p>
+      </div>
+      <span class="use-case-badge badge-green">창작 지원</span>
+    </div>
+    <div class="use-case">
+      <div class="use-case-icon">🔬</div>
+      <div class="use-case-content">
+        <h3>전문직 (의료·법률·금융)</h3>
+        <p>복잡한 전문 문서를 빠르게 검색·비교·분석</p>
+      </div>
+      <span class="use-case-badge badge-orange">정밀 분석</span>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── 슬라이드 5: 시작하기 ──────────────── -->
+<div class="slide slide-5" id="slide-5">
+  <h2 class="slide-title">🚀 <span>지금 바로 시작하기</span></h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-circle">1</div>
+      <h3>접속</h3>
+      <p>notebooklm.google.com<br>Google 계정으로 로그인</p>
+    </div>
+    <div class="step">
+      <div class="step-circle">2</div>
+      <h3>자료 업로드</h3>
+      <p>PDF, 문서, URL,<br>YouTube 링크 추가</p>
+    </div>
+    <div class="step">
+      <div class="step-circle">3</div>
+      <h3>AI와 대화</h3>
+      <p>자유롭게 질문하고<br>답변·요약 받기</p>
+    </div>
+    <div class="step">
+      <div class="step-circle">4</div>
+      <h3>공유 & 활용</h3>
+      <p>노트 저장하고<br>팀원과 공유</p>
+    </div>
+  </div>
+  <div class="cta-area">
+    <div class="cta-url">notebooklm.google.com</div>
+    <div class="cta-note">무료로 사용 가능 · Google 계정 필요</div>
+  </div>
+</div>
+
+<!-- ──────────────── 네비게이션 ──────────────── -->
+<div class="slide-counter" id="counter">1 / 5</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prev" onclick="changeSlide(-1)">← 이전</button>
+  <div class="nav-dots" id="dots"></div>
+  <button class="nav-btn" id="next" onclick="changeSlide(1)">다음 →</button>
+</div>
+
+<script>
+  const totalSlides = 5;
+  let current = 1;
+
+  const dots = document.getElementById('dots');
+  for (let i = 1; i <= totalSlides; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 1 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dots.appendChild(d);
+  }
+
+  function goTo(n) {
+    document.getElementById('slide-' + current).classList.remove('active');
+    current = Math.max(1, Math.min(totalSlides, n));
+    document.getElementById('slide-' + current).classList.add('active');
+    document.getElementById('counter').textContent = current + ' / ' + totalSlides;
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i + 1 === current);
+    });
+    document.getElementById('prev').style.opacity = current === 1 ? '0.3' : '1';
+    document.getElementById('next').style.opacity = current === totalSlides ? '0.3' : '1';
+  }
+
+  function changeSlide(dir) { goTo(current + dir); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') changeSlide(-1);
+  });
+
+  goTo(1);
+</script>
+</body>
+</html>
