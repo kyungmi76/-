@@ -9,12 +9,12 @@
 
 # ── 공통 신청자 정보 ──────────────────────────────────────
 applicant:
-  name: "홍길동"
-  phone: "010-0000-0000"
-  email: "example@email.com"
-  school: "OO고등학교"     # 재학/졸업 고교
-  grade: "3"               # 학년 (1 / 2 / 3 / 졸업)
-  region: "서울"           # 거주 지역
+  name: "김경미"
+  phone: "010-4711-8574"
+  email: "kmikim@gsgcprp.com"
+  school: "선덕고등학교"
+  grade: "3"
+  region: "서울"
 
 # ── 봇 동작 설정 ──────────────────────────────────────────
 bot:
