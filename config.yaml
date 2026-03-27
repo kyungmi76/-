@@ -1,11 +1,6 @@
 # ============================================================
 # 대학 입학설명회 자동신청 봇 설정
 # ============================================================
-# 사용 전 반드시 확인:
-#   1. 각 대학 login.id / login.password 입력
-#   2. applicant (신청자 정보) 입력
-#   3. python bot.py --setup  으로 셀렉터 테스트 후 실행
-# ============================================================
 
 # ── 공통 신청자 정보 ──────────────────────────────────────
 applicant:
@@ -18,10 +13,10 @@ applicant:
 
 # ── 봇 동작 설정 ──────────────────────────────────────────
 bot:
-  headless: false          # false = 브라우저 화면 표시(권장), true = 백그라운드
+  headless: false          # false = 브라우저 화면 표시(권장)
   timeout: 20000           # 페이지 로딩 최대 대기 (ms)
-  retry_interval: 5        # 신청 실패 시 재시도 간격 (초)
-  max_retries: 30          # 최대 재시도 횟수 (30회 × 5초 = 2분 30초)
+  retry_interval: 5        # 재시도 간격 (초)
+  max_retries: 36          # 최대 재시도 횟수 (36회 × 5초 = 3분)
   early_start_minutes: 3   # 신청 시작 N분 전에 브라우저 열고 대기
 
 # ── 대학별 설정 ───────────────────────────────────────────
@@ -31,7 +26,11 @@ universities:
   yonsei:
     name: "연세대학교"
     enabled: true
-    target_datetime: "2026-03-30 10:00:00"  # 신청 목표 일시
+    # ★ 봇이 접속해서 신청 버튼을 클릭하는 시각 (선착순 시작)
+    apply_open_datetime: "2026-03-30 10:00:00"
+    # ★ 폼에서 선택할 설명회 날짜 (원하는 회차)
+    session_date: "2026-04-18"   # 4월 18일(토) 오전 10:00 설명회
+    session_date_text: "4월 18일, 2026년 4월 18일, 04/18, 4/18"  # 폼에 나타날 수 있는 텍스트
 
     login:
       id: "YONSEI_ID"
@@ -43,11 +42,8 @@ universities:
       success_check: "a:has-text('로그아웃'), a:has-text('마이페이지')"
 
     seminar:
-      # 설명회 목록/신청 페이지 URL (브라우저로 열어서 직접 확인 후 입력)
       url: "https://admission.yonsei.ac.kr/seoul/admission/html/info/seminar.asp"
-      # 신청 버튼 셀렉터
       apply_btn_selector: "a:has-text('신청'), button:has-text('신청'), a:has-text('접수')"
-      # 신청 폼 필드 (name 속성 기준)
       form_fields:
         name: "name,userName,applicantName"
         phone: "phone,tel,mobile,hp,cellphone"
@@ -59,7 +55,9 @@ universities:
   korea:
     name: "고려대학교"
     enabled: true
-    target_datetime: "2026-04-02 10:00:00"
+    apply_open_datetime: "2026-04-02 10:00:00"
+    session_date: "2026-04-25"   # 4월 25일(토) 오전 10:00 설명회
+    session_date_text: "4월 25일, 2026년 4월 25일, 04/25, 4/25"
 
     login:
       id: "KOREA_ID"
@@ -84,12 +82,13 @@ universities:
   kyunghee:
     name: "경희대학교"
     enabled: true
-    target_datetime: "2026-04-20 16:00:00"
+    apply_open_datetime: "2026-04-20 16:00:00"
+    session_date: "2026-05-30"   # 5월 30일(토) 설명회
+    session_date_text: "5월 30일, 2026년 5월 30일, 05/30, 5/30"
 
     login:
       id: "KHU_ID"
       password: "KHU_PW"
-      # 로그인 없이 직접 신청 가능한 경우 url을 비워두세요
       url: "https://iphak.khu.ac.kr/login.do"
       id_selector: "input[name='id'], input[name='userId'], input[type='text']"
       pw_selector: "input[name='pw'], input[name='password'], input[type='password']"
@@ -97,7 +96,6 @@ universities:
       success_check: "a:has-text('로그아웃'), a:has-text('마이페이지')"
 
     seminar:
-      # 경희대는 board_seq가 바뀔 수 있으므로 목록 페이지도 함께 설정
       url: "https://iphak.khu.ac.kr/detail.do?menuurl=KnGkqceB267fZdhM2T482w%3D%3D&board_seq=16744&pageNo=1&categoryid=42&userpwd="
       apply_btn_selector: "a:has-text('신청'), button:has-text('신청'), input[type='submit'], a:has-text('접수'), a:has-text('참가신청')"
       form_fields:

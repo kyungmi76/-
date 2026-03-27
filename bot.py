@@ -116,7 +116,11 @@ class UniversityBot:
         self.applicant = cfg["applicant"]
         self.bot_cfg = cfg["bot"]
         self.log = make_logger(self.name)
-        self.target_dt = datetime.strptime(ucfg["target_datetime"], "%Y-%m-%d %H:%M:%S")
+        # 신청 접수 시작 시각 (선착순 클릭 타이밍)
+        self.target_dt = datetime.strptime(ucfg["apply_open_datetime"], "%Y-%m-%d %H:%M:%S")
+        # 원하는 설명회 날짜 (폼에서 선택)
+        self.session_date = ucfg.get("session_date", "")
+        self.session_date_text = ucfg.get("session_date_text", "")
 
     async def try_apply(self, page: Page) -> bool:
         """설명회 신청 시도. 성공 True / 신청버튼없음 False / 로그인필요 None 반환."""
@@ -172,6 +176,9 @@ class UniversityBot:
         await fill_field(page, fields.get("school", "school,highSchool,schoolName,scNm"), self.applicant.get("school", ""))
         await fill_field(page, fields.get("grade",  "grade,schoolGrade,hakNyun"), self.applicant.get("grade", ""))
         await fill_field(page, fields.get("region", "region,area,sido,siDo"), self.applicant.get("region", ""))
+
+        # 원하는 설명회 날짜 선택
+        await self._select_session_date(page)
 
         # 개인정보 동의 체크박스 모두 체크
         agree = page.locator(
@@ -234,6 +241,58 @@ class UniversityBot:
         self.log.info("로그인 완료")
         return True
 
+    async def _select_session_date(self, page: Page):
+        """설명회 날짜 선택 (라디오버튼 / 드롭다운 / 링크 모두 지원)."""
+        if not self.session_date:
+            return
+
+        date_obj = datetime.strptime(self.session_date, "%Y-%m-%d")
+        # 폼에서 나타날 수 있는 다양한 날짜 표현
+        candidates = [
+            self.session_date,                          # 2026-04-18
+            date_obj.strftime("%Y.%m.%d"),              # 2026.04.18
+            date_obj.strftime("%-m월 %-d일"),            # 4월 18일
+            date_obj.strftime("%m/%d"),                  # 04/18
+            date_obj.strftime("%-m/%-d"),                # 4/18
+        ]
+        if self.session_date_text:
+            candidates += [t.strip() for t in self.session_date_text.split(",")]
+
+        # 1) 라디오/체크박스에서 날짜 값 탐색
+        for cand in candidates:
+            radio = page.locator(
+                f'input[type="radio"][value*="{cand}"],'
+                f'input[type="checkbox"][value*="{cand}"]'
+            )
+            if await radio.count() > 0:
+                await radio.first.check()
+                self.log.info(f"설명회 날짜 선택 (라디오): {cand}")
+                return
+
+        # 2) select 드롭다운에서 날짜 옵션 탐색
+        selects = page.locator("select")
+        for i in range(await selects.count()):
+            sel = selects.nth(i)
+            opts = await sel.evaluate("el => Array.from(el.options).map(o => ({v:o.value, t:o.text}))")
+            for opt in opts:
+                if any(c in opt["v"] or c in opt["t"] for c in candidates):
+                    try:
+                        await sel.select_option(value=opt["v"])
+                    except Exception:
+                        await sel.select_option(label=opt["t"])
+                    self.log.info(f"설명회 날짜 선택 (드롭다운): {opt['t']}")
+                    return
+
+        # 3) 날짜 텍스트가 포함된 링크/버튼 클릭
+        for cand in candidates:
+            loc = page.locator(f"a:has-text('{cand}'), button:has-text('{cand}'), label:has-text('{cand}')")
+            if await loc.count() > 0:
+                await loc.first.click()
+                self.log.info(f"설명회 날짜 선택 (클릭): {cand}")
+                return
+
+        self.log.warning(f"설명회 날짜({self.session_date}) 선택 항목을 찾지 못했습니다. 브라우저에서 직접 선택하세요.")
+
     def _record(self):
         with open("applied_sessions.log", "a", encoding="utf-8") as f:
             f.write(f"{datetime.now():%Y-%m-%d %H:%M:%S} | 신청완료 | {self.name} | {self.target_dt:%Y-%m-%d %H:%M}\n")
@@ -245,7 +304,7 @@ class UniversityBot:
         now = datetime.now()
 
         if now > self.target_dt + timedelta(hours=2):
-            self.log.info(f"신청 시각({self.target_dt:%m/%d %H:%M})이 이미 지났습니다.")
+            self.log.info(f"신청 접수 시각({self.target_dt:%m/%d %H:%M})이 이미 지났습니다.")
             return
 
         if now < wake_dt:
@@ -345,7 +404,7 @@ async def main():
     root_log.info("=" * 55)
     root_log.info(" 대학 입학설명회 자동신청 봇 시작")
     for b in bots:
-        root_log.info(f"  [{b.name}] → {b.target_dt:%Y-%m-%d %H:%M}")
+        root_log.info(f"  [{b.name}] 접수 시작: {b.target_dt:%Y-%m-%d %H:%M} → 신청 설명회: {b.session_date}")
     root_log.info("=" * 55)
     root_log.info("종료하려면 Ctrl+C")
     root_log.info("")
