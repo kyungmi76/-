@@ -189,9 +189,10 @@ class UniversityBot:
         scfg = self.ucfg["seminar"]
         url = scfg["url"]
 
-        self.log.info(f"페이지 이동: {url}")
-        await page.goto(url, wait_until="domcontentloaded", timeout=self.bot_cfg["timeout"])
-        await asyncio.sleep(1)
+        self.log.info(f"페이지 확인: {url}")
+        # reload 대신 현재 페이지 재활용 (run_scheduled에서 이미 로드됨)
+        if page.url.split("?")[0] != url.split("?")[0]:
+            await page.goto(url, wait_until="domcontentloaded", timeout=self.bot_cfg["timeout"])
 
         # 로그인 페이지로 이동됐는지 확인
         if await is_redirected_to_login(page):
@@ -362,13 +363,15 @@ class UniversityBot:
     # ── 스케줄 실행 ──────────────────────────────
     async def run_scheduled(self, browser: Browser):
         early = self.bot_cfg["early_start_minutes"]
-        wake_dt = self.target_dt - timedelta(minutes=early)
+        wake_dt  = self.target_dt - timedelta(minutes=early)
+        ready_dt = self.target_dt - timedelta(seconds=30)  # 30초 전 페이지 미리 로드
         now = datetime.now()
 
         if now > self.target_dt + timedelta(hours=2):
             self.log.info(f"신청 접수 시각({self.target_dt:%m/%d %H:%M})이 이미 지났습니다.")
             return
 
+        # ── 1단계: 브라우저 오픈 타이밍까지 대기 ────────────
         if now < wake_dt:
             wait_sec = (wake_dt - now).total_seconds()
             h, m = divmod(int(wait_sec), 3600)
@@ -379,7 +382,7 @@ class UniversityBot:
             )
             await asyncio.sleep(wait_sec)
 
-        # 브라우저 컨텍스트 생성
+        # ── 2단계: 브라우저 열고 로그인 ──────────────────────
         ctx: BrowserContext = await browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -389,65 +392,99 @@ class UniversityBot:
             locale="ko-KR",
         )
         page = await ctx.new_page()
-        self.log.info(f"브라우저 열림 ({self.name})")
+        self.log.info(f"브라우저 열림 ({self.name}) — 로그인 시도")
+        login_attempted = await self.try_login(page)
 
-        # 목표 시각까지 대기
+        # ── 3단계: 30초 전 페이지 미리 로드 ─────────────────
+        now = datetime.now()
+        if now < ready_dt:
+            wait_sec = (ready_dt - now).total_seconds()
+            self.log.info(f"페이지 미리 로드까지 {wait_sec:.0f}초 대기...")
+            await asyncio.sleep(wait_sec)
+
+        seminar_url = self.ucfg["seminar"]["url"]
+        self.log.info(f"설명회 페이지 미리 로드: {seminar_url}")
+        try:
+            await page.goto(seminar_url, wait_until="domcontentloaded",
+                            timeout=self.bot_cfg["timeout"])
+        except Exception:
+            pass
+
+        # ── 4단계: 정각까지 마지막 대기 ──────────────────────
         now = datetime.now()
         if now < self.target_dt:
             remain = (self.target_dt - now).total_seconds()
-            self.log.info(f"신청 시작까지 {remain:.0f}초 대기...")
+            self.log.info(f"★ 신청 시작까지 {remain:.1f}초... 준비 완료!")
             await asyncio.sleep(remain)
 
-        # 신청 루프
+        # ── 5단계: 즉시 신청 루프 ────────────────────────────
         max_retries = self.bot_cfg["max_retries"]
-        interval = self.bot_cfg["retry_interval"]
-        login_attempted = False
-        success = False
+        interval    = self.bot_cfg["retry_interval"]
+        login_done  = login_attempted  # 이미 로그인 시도했으면 True
+        success     = False
 
         for attempt in range(1, max_retries + 1):
             self.log.info(f"신청 시도 {attempt}/{max_retries}")
             try:
+                # 페이지 새로고침 후 즉시 시도 (첫 시도는 이미 로드된 페이지 활용)
+                if attempt > 1:
+                    await page.reload(wait_until="domcontentloaded",
+                                      timeout=self.bot_cfg["timeout"])
+
                 result = await self.try_apply(page)
 
                 if result is True:
                     success = True
+                    # 성공 이메일 발송
+                    send_email(
+                        self.cfg,
+                        f"✅ [{self.name}] 설명회 신청 완료!",
+                        f"[{self.name}] 입학설명회 신청이 완료되었습니다.\n"
+                        f"신청 설명회: {self.session_date}\n"
+                        f"신청 시각: {datetime.now():%Y-%m-%d %H:%M:%S}"
+                    )
                     break
 
                 elif result is None:
-                    # 로그인 필요 → 한 번만 시도
-                    if not login_attempted:
-                        login_attempted = True
-                        logged = await self.try_login(page)
-                        if not logged:
-                            self.log.error(
-                                f"\n{'='*50}\n"
-                                f"  [{self.name}] 로그인이 필요합니다!\n"
-                                f"  config.yaml 에 로그인 정보를 입력하거나\n"
-                                f"  열린 브라우저에서 직접 로그인해 주세요.\n"
-                                f"{'='*50}"
-                            )
-                            # 브라우저는 열어두고 사용자가 직접 진행할 수 있게 대기
-                            await asyncio.sleep(interval)
+                    # 로그인 필요 — 한 번만 재시도
+                    if not login_done:
+                        login_done = True
+                        self.log.warning("로그인 후 재시도합니다...")
+                        await self.try_login(page)
+                        # 로그인 후 바로 다음 루프로 (sleep 없이)
+                        continue
                     else:
+                        self.log.error(
+                            f"\n{'='*50}\n"
+                            f"  [{self.name}] 로그인이 필요합니다!\n"
+                            f"  config.yaml에 로그인 정보를 입력하거나\n"
+                            f"  열린 브라우저에서 직접 로그인해 주세요.\n"
+                            f"{'='*50}"
+                        )
                         await asyncio.sleep(interval)
 
                 else:
-                    # False: 신청 버튼 없음 → 대기 후 재시도
+                    # False: 신청 버튼 없음 → 짧게 대기 후 재시도
                     await asyncio.sleep(interval)
 
             except PwTimeout:
-                self.log.warning("타임아웃 — 재시도")
-                await asyncio.sleep(interval)
+                self.log.warning("타임아웃 — 즉시 재시도")
             except Exception as e:
-                self.log.error(f"오류: {e}")
-                await asyncio.sleep(interval)
+                self.log.error(f"오류: {e} — 재시도")
+                await asyncio.sleep(1)
 
         if not success:
             self.log.error(f"신청 실패 — {max_retries}회 시도 완료")
+            send_email(
+                self.cfg,
+                f"❌ [{self.name}] 설명회 신청 실패",
+                f"[{self.name}] {max_retries}회 시도했으나 신청에 실패했습니다.\n"
+                f"브라우저를 직접 확인해 주세요."
+            )
 
-        # 브라우저 5분 유지 (결과 확인용)
-        self.log.info("브라우저를 5분간 열어둡니다. 결과를 직접 확인하세요.")
-        await asyncio.sleep(300)
+        # 브라우저 10분 유지 (결과 확인용)
+        self.log.info("브라우저를 열어둡니다. 결과를 직접 확인하세요. (10분 후 자동 닫힘)")
+        await asyncio.sleep(600)
         await ctx.close()
 
 

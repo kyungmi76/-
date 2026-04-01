@@ -14,10 +14,10 @@ applicant:
 # ── 봇 동작 설정 ──────────────────────────────────────────
 bot:
   headless: false          # false = 브라우저 화면 표시(권장)
-  timeout: 20000           # 페이지 로딩 최대 대기 (ms)
-  retry_interval: 5        # 재시도 간격 (초)
-  max_retries: 36          # 최대 재시도 횟수 (36회 × 5초 = 3분)
-  early_start_minutes: 3   # 신청 시작 N분 전에 브라우저 열고 대기
+  timeout: 15000           # 페이지 로딩 최대 대기 (ms) — 빠른 응답
+  retry_interval: 2        # 재시도 간격 (초) — 선착순 대비 최소화
+  max_retries: 60          # 최대 재시도 (60회 × 2초 = 2분)
+  early_start_minutes: 5   # 신청 시작 5분 전에 브라우저 열고 로그인
 
 # ── 이메일 알림 설정 ──────────────────────────────────────
 # 신청 10분 전에 휴대폰으로 알림 이메일 발송
@@ -119,3 +119,30 @@ universities:
         email: "email,mail"
         school: "school,highSchool"
         grade: "grade"
+
+  # 서강대학교 -----------------------------------------------
+  sogang:
+    name: "서강대학교"
+    enabled: true
+    apply_open_datetime: "2026-04-24 10:00:00"   # 신청 접수 시작 (선착순)
+    session_date: "2026-05-09"                    # 5월 9일(토) 설명회
+    session_date_text: "5월 9일, 2026년 5월 9일, 05/09, 5/9"
+
+    login:
+      id: "SOGANG_ID"
+      password: "SOGANG_PW"
+      url: "https://admission.sogang.ac.kr/enter/html/member/login.asp"
+      id_selector: "input[name='id'], input[name='userId'], input[type='text']"
+      pw_selector: "input[name='pw'], input[name='password'], input[type='password']"
+      submit_selector: "button[type='submit'], input[type='submit'], a:has-text('로그인')"
+      success_check: "a:has-text('로그아웃'), a:has-text('마이페이지')"
+
+    seminar:
+      url: "https://admission.sogang.ac.kr/enter/html/counsel/noticeView.asp"
+      apply_btn_selector: "a:has-text('신청'), button:has-text('신청'), input[type='submit'], a:has-text('접수'), a:has-text('참가신청')"
+      form_fields:
+        name: "name,userName,applicantName"
+        phone: "phone,tel,mobile,hp,cellphone"
+        email: "email,mail,userEmail"
+        school: "school,highSchool,schoolName"
+        grade: "grade,schoolGrade"
