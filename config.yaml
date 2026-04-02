@@ -4,8 +4,8 @@
 
 # ── 공통 신청자 정보 ──────────────────────────────────────
 applicant:
-  name: "김경미"
-  phone: "010-4711-8574"
+  name: "전성욱"
+  phone: "010-6275-7001"
   email: "kmikim@gsgcprp.com"
   school: "선덕고등학교"
   grade: "3"
@@ -42,7 +42,7 @@ universities:
     name: "연세대학교"
     enabled: false   # 직접 신청 예정 — 이메일 알림만 발송
     # ★ 봇이 접속해서 신청 버튼을 클릭하는 시각 (선착순 시작)
-    apply_open_datetime: "2026-03-30 10:00:00"
+    apply_open_datetime: "2026-03-30 01:00:00"   # KST 10:00 = UTC 01:00
     # ★ 폼에서 선택할 설명회 날짜 (원하는 회차)
     session_date: "2026-04-18"   # 4월 18일(토) 오전 10:00 설명회
     session_date_text: "4월 18일, 2026년 4월 18일, 04/18, 4/18"  # 폼에 나타날 수 있는 텍스트
@@ -70,7 +70,7 @@ universities:
   korea:
     name: "고려대학교"
     enabled: true
-    apply_open_datetime: "2026-04-02 10:00:00"
+    apply_open_datetime: "2026-04-02 01:00:00"   # KST 10:00 = UTC 01:00
     session_date: "2026-04-25"   # 4월 25일(토) 오전 10:00 설명회
     session_date_text: "4월 25일, 2026년 4월 25일, 04/25, 4/25"
 
@@ -97,7 +97,7 @@ universities:
   kyunghee:
     name: "경희대학교"
     enabled: true
-    apply_open_datetime: "2026-04-20 16:00:00"
+    apply_open_datetime: "2026-04-20 07:00:00"   # KST 16:00 = UTC 07:00
     session_date: "2026-05-30"   # 5월 30일(토) 설명회
     session_date_text: "5월 30일, 2026년 5월 30일, 05/30, 5/30"
 
@@ -124,7 +124,7 @@ universities:
   sogang:
     name: "서강대학교"
     enabled: true
-    apply_open_datetime: "2026-04-24 10:00:00"   # 신청 접수 시작 (선착순)
+    apply_open_datetime: "2026-04-24 01:00:00"   # KST 10:00 = UTC 01:00
     session_date: "2026-05-09"                    # 5월 9일(토) 설명회
     session_date_text: "5월 9일, 2026년 5월 9일, 05/09, 5/9"
 
