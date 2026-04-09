@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>생산현황 조회 시스템 | Production Status Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', Arial, sans-serif; font-size: 13px; background: #f0f2f5; color: #333; }
+
+  /* ─── Login ─── */
+  #loginPage {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; background: linear-gradient(135deg, #1a3a6b 0%, #2d6cb0 100%);
+  }
+  .login-box {
+    background: #fff; border-radius: 8px; padding: 48px 40px;
+    width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .login-logo { text-align: center; margin-bottom: 32px; }
+  .login-logo .company-name { font-size: 22px; font-weight: 700; color: #1a3a6b; }
+  .login-logo .subtitle { font-size: 12px; color: #888; margin-top: 4px; }
+  .login-box h2 { font-size: 18px; color: #333; margin-bottom: 24px; text-align: center; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 6px; font-weight: 600; }
+  .form-group input {
+    width: 100%; padding: 10px 14px; border: 1px solid #d0d5de;
+    border-radius: 6px; font-size: 14px; outline: none; transition: border-color .2s;
+  }
+  .form-group input:focus { border-color: #2d6cb0; }
+  .login-btn {
+    width: 100%; padding: 12px; background: #1a3a6b; color: #fff;
+    border: none; border-radius: 6px; font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-top: 8px; transition: background .2s;
+  }
+  .login-btn:hover { background: #2d6cb0; }
+  .login-error { color: #d32f2f; font-size: 12px; text-align: center; margin-top: 8px; display: none; }
+
+  /* ─── App Layout ─── */
+  #appPage { display: none; min-height: 100vh; flex-direction: column; }
+  .top-header {
+    background: #1a3a6b; color: #fff; padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between; height: 52px;
+  }
+  .top-header .title { font-size: 16px; font-weight: 700; }
+  .top-header .user-info { font-size: 12px; display: flex; align-items: center; gap: 16px; }
+  .logout-btn {
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    color: #fff; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .logout-btn:hover { background: rgba(255,255,255,0.25); }
+
+  .main-content { display: flex; flex: 1; }
+
+  /* ─── Sidebar Filter ─── */
+  .sidebar {
+    width: 240px; background: #fff; border-right: 1px solid #e0e0e0;
+    padding: 16px; overflow-y: auto; flex-shrink: 0;
+  }
+  .sidebar-section { margin-bottom: 20px; }
+  .sidebar-section-title {
+    font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;
+    letter-spacing: .5px; margin-bottom: 10px; padding-bottom: 6px;
+    border-bottom: 1px solid #eee;
+  }
+  .filter-group { margin-bottom: 12px; }
+  .filter-group label { font-size: 12px; color: #555; font-weight: 600; display: block; margin-bottom: 4px; }
+  .filter-group select, .filter-group input[type="text"] {
+    width: 100%; padding: 6px 8px; border: 1px solid #d0d5de;
+    border-radius: 4px; font-size: 12px; outline: none;
+  }
+  .filter-group select:focus, .filter-group input:focus { border-color: #2d6cb0; }
+
+  /* Item checkboxes */
+  .item-list { max-height: 220px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; padding: 6px; }
+  .item-check-all { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+  .item-check-all label, .item-row label { font-size: 12px; color: #444; cursor: pointer; }
+  .item-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+  .item-row input[type="checkbox"], .item-check-all input[type="checkbox"] { cursor: pointer; }
+
+  .apply-btn {
+    width: 100%; padding: 8px; background: #2d6cb0; color: #fff;
+    border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;
+    margin-top: 4px;
+  }
+  .apply-btn:hover { background: #1a3a6b; }
+  .reset-btn {
+    width: 100%; padding: 6px; background: #fff; color: #666;
+    border: 1px solid #d0d5de; border-radius: 4px; cursor: pointer; font-size: 12px;
+    margin-top: 6px;
+  }
+  .reset-btn:hover { background: #f5f5f5; }
+
+  /* ─── Main Panel ─── */
+  .panel { flex: 1; padding: 20px; overflow: auto; }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .panel-title { font-size: 16px; font-weight: 700; color: #1a3a6b; }
+  .panel-actions { display: flex; gap: 8px; align-items: center; }
+
+  .badge {
+    background: #e8f0fb; color: #2d6cb0; padding: 2px 8px;
+    border-radius: 12px; font-size: 11px; font-weight: 600;
+  }
+
+  .download-btn {
+    padding: 7px 16px; background: #217346; color: #fff;
+    border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .download-btn:hover { background: #1a5c38; }
+  .download-btn svg { width: 14px; height: 14px; }
+
+  /* ─── Table ─── */
+  .table-wrapper { overflow: auto; border: 1px solid #e0e0e0; border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; min-width: 1400px; }
+  thead tr th {
+    background: #1a3a6b; color: #fff; padding: 8px 10px;
+    font-size: 11px; font-weight: 600; text-align: center;
+    white-space: nowrap; border-right: 1px solid rgba(255,255,255,0.15);
+    position: sticky; top: 0; z-index: 2;
+  }
+  thead tr.sub-header th {
+    background: #2d6cb0; font-size: 10px; font-weight: 500;
+    padding: 4px 8px;
+  }
+  tbody tr { background: #fff; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:hover { background: #e8f0fb; }
+  tbody td {
+    padding: 7px 10px; font-size: 12px; text-align: center;
+    border-right: 1px solid #eee; border-bottom: 1px solid #eee;
+    white-space: nowrap;
+  }
+  .status-cell { font-weight: 600; }
+  .status-p { background: #fff3e0; color: #e65100; border-radius: 3px; padding: 2px 6px; }
+  .status-done { background: #e8f5e9; color: #2e7d32; border-radius: 3px; padding: 2px 6px; }
+  .status-wip { background: #e3f2fd; color: #1565c0; border-radius: 3px; padding: 2px 6px; }
+  td.numeric { text-align: right; }
+
+  /* Summary header groups */
+  .th-group-order { background: #1a3a6b !important; }
+  .th-group-prod { background: #15487a !important; }
+  .th-group-ship { background: #0f2d4f !important; }
+
+  .no-data { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+
+  /* Last updated */
+  .last-updated { font-size: 11px; color: #999; text-align: right; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ LOGIN PAGE ═══════════════════════════════ -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="company-name">POSCO 생산현황 조회</div>
+      <div class="subtitle">Production Status Portal</div>
+    </div>
+    <h2>고객사 로그인</h2>
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>고객사 계정 (Customer ID)</label>
+        <input type="text" id="userId" placeholder="계정을 입력하세요" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label>비밀번호 (Password)</label>
+        <input type="password" id="userPw" placeholder="비밀번호를 입력하세요" autocomplete="current-password" />
+      </div>
+      <button type="submit" class="login-btn">로그인 / Login</button>
+      <div id="loginError" class="login-error">계정 또는 비밀번호가 올바르지 않습니다.</div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ APP PAGE ═══════════════════════════════ -->
+<div id="appPage" style="display:none; flex-direction:column; min-height:100vh;">
+  <div class="top-header">
+    <div class="title">POSCO 생산현황 조회 시스템 &nbsp;|&nbsp; Production Status Portal</div>
+    <div class="user-info">
+      <span id="welcomeMsg"></span>
+      <button class="logout-btn" onclick="handleLogout()">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <!-- ─── Sidebar ─── -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">조회 조건 / Filter</div>
+
+        <div class="filter-group">
+          <label>국가 (Country)</label>
+          <select id="filterCountry">
+            <option value="">전체 (All)</option>
+            <option value="Belgium">Belgium</option>
+            <option value="Japan">Japan</option>
+            <option value="Australia">Australia</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Usage</label>
+          <select id="filterUsage">
+            <option value="">전체 (All)</option>
+            <option value="CR">CR (냉연)</option>
+            <option value="HR">HR (열연)</option>
+            <option value="GI">GI (도금)</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Team</label>
+          <select id="filterTeam">
+            <option value="">전체 (All)</option>
+            <option value="A">Team A</option>
+            <option value="B">Team B</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Format (제품)</label>
+          <select id="filterFormat">
+            <option value="">전체 (All)</option>
+            <option value="FCE = CR">FCE = CR</option>
+            <option value="FCE = HR">FCE = HR</option>
+            <option value="GI">GI</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">품목 선택 / Item</div>
+        <div class="item-list">
+          <div class="item-check-all">
+            <input type="checkbox" id="checkAll" checked onchange="toggleAllItems(this.checked)">
+            <label for="checkAll">전체 선택 (Select All)</label>
+          </div>
+          <div id="itemCheckboxes"></div>
+        </div>
+      </div>
+
+      <button class="apply-btn" onclick="applyFilters()">조회 / Search</button>
+      <button class="reset-btn" onclick="resetFilters()">초기화 / Reset</button>
+    </div>
+
+    <!-- ─── Main Panel ─── -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">생산현황 서머리 (Production Summary)</div>
+        </div>
+        <div class="panel-actions">
+          <span class="badge" id="rowCount">0 건</span>
+          <button class="download-btn" onclick="downloadExcel()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            상세 다운로드 (Detail Excel)
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table id="summaryTable">
+          <thead>
+            <tr>
+              <th rowspan="2" class="th-group-order">국가<br><span style="font-weight:400;font-size:10px">Country</span></th>
+              <th rowspan="2" class="th-group-order">수요가<br><span style="font-weight:400;font-size:10px">Customer</span></th>
+              <th rowspan="2" class="th-group-order">제품<br><span style="font-weight:400;font-size:10px">Item</span></th>
+              <th rowspan="2" class="th-group-order">PO No<br><span style="font-weight:400;font-size:10px">구매번호</span></th>
+              <th rowspan="2" class="th-group-order">Order No<br><span style="font-weight:400;font-size:10px">주문번호</span></th>
+              <th rowspan="2" class="th-group-order">상세착지명<br><span style="font-weight:400;font-size:10px">Destination</span></th>
+              <th rowspan="2" class="th-group-order">규격<br><span style="font-weight:400;font-size:10px">Grade</span></th>
+              <th rowspan="2" class="th-group-order">두께<br><span style="font-weight:400;font-size:10px">Thickness</span></th>
+              <th rowspan="2" class="th-group-order">폭<br><span style="font-weight:400;font-size:10px">Width</span></th>
+              <th rowspan="2" class="th-group-order">길이<br><span style="font-weight:400;font-size:10px">Length</span></th>
+              <th rowspan="2" class="th-group-order">주문량<br><span style="font-weight:400;font-size:10px">Q'ty</span></th>
+              <th rowspan="2" class="th-group-order">소<br><span style="font-weight:400;font-size:10px">Works</span></th>
+              <th colspan="8" class="th-group-prod" style="background:#15487a;">생산 공정 (Production Process)</th>
+              <th colspan="2" class="th-group-ship" style="background:#0f2d4f;">출하 (Shipment)</th>
+            </tr>
+            <tr>
+              <th class="th-group-prod" style="background:#15487a;font-size:10px;">설계대기<br>Waiting<br>Production</th>
+              <th class="th-group-prod" style="background:#15487a;font-size:10px;">출강<br>Finished<br>Steel Making</th>
+              <th class="th-group-prod" style="background:#15487a;font-size:10px;">압연<br>Rolling</th>
+              <th class="th-group-prod" style="background:#15487a;font-size:10px;">소둔<br>Annealing</th>
+              <th class="th-group-prod" style="background:#15487a;font-size:10px;">도금<br>Coating</th>
+              <th class="th-group-prod" style="background:#15487a;font-size:10px;">입고누계<br>Sum of<br>Stock</th>
+              <th class="th-group-ship" style="background:#0f2d4f;font-size:10px;">출하대기<br>Awaiting<br>Shipment</th>
+              <th class="th-group-ship" style="background:#0f2d4f;font-size:10px;">출하완료<br>Loading<br>Completed</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody">
+          </tbody>
+        </table>
+      </div>
+      <div class="last-updated" id="lastUpdated"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Sample Data ─────────────────────────────────────────────────────────────
+const ALL_DATA = [
+  {
+    country: "Belgium", customer: "EMW Stahl Service GmbH", item: "FCE = CR",
+    poNo: "210336", orderNo: "01S6845096", destination: "Melbourne",
+    grade: "G350", thickness: 1.0, width: 2400, length: 6000,
+    qty: 22.608, works: "P",
+    waitingProd: 0, steelMaking: 22.608, rolling: 0, annealing: 0, coating: 0,
+    sumStock: 0, awaitingShip: 0, loadingCompleted: 0,
+    usage: "CR", team: "A",
+    // detail extra
+    firstRolling: 0, secondRolling: 0, crCorrection: 0,
+    waitingReceiving: 0, waitingJudgement: 0,
+    shipments: [
+      { departureDate: "2026-04-20", qty: 22.608, vessel: "OLYMPIC GLORY" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" }
+    ]
+  },
+  {
+    country: "Belgium", customer: "EMW Stahl Service GmbH", item: "FCE = CR",
+    poNo: "210337", orderNo: "01S6845097", destination: "Melbourne",
+    grade: "G300", thickness: 0.8, width: 1800, length: 4500,
+    qty: 18.450, works: "P",
+    waitingProd: 18.450, steelMaking: 0, rolling: 0, annealing: 0, coating: 0,
+    sumStock: 0, awaitingShip: 0, loadingCompleted: 0,
+    usage: "CR", team: "A",
+    firstRolling: 0, secondRolling: 0, crCorrection: 0,
+    waitingReceiving: 0, waitingJudgement: 0,
+    shipments: [
+      { departureDate: "2026-05-10", qty: 18.450, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" }
+    ]
+  },
+  {
+    country: "Belgium", customer: "EMW Stahl Service GmbH", item: "GI",
+    poNo: "210340", orderNo: "01S6845100", destination: "Sydney",
+    grade: "G550", thickness: 0.55, width: 1200, length: 3000,
+    qty: 35.200, works: "P",
+    waitingProd: 0, steelMaking: 0, rolling: 0, annealing: 0, coating: 35.200,
+    sumStock: 0, awaitingShip: 0, loadingCompleted: 0,
+    usage: "GI", team: "B",
+    firstRolling: 0, secondRolling: 0, crCorrection: 0,
+    waitingReceiving: 0, waitingJudgement: 0,
+    shipments: [
+      { departureDate: "2026-04-25", qty: 35.200, vessel: "EVER GIVEN" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" }
+    ]
+  },
+  {
+    country: "Japan", customer: "동양강판 (Dongyang Steel)", item: "FCE = CR",
+    poNo: "310101", orderNo: "02S7001201", destination: "Tokyo",
+    grade: "SPCC", thickness: 0.6, width: 1000, length: 2438,
+    qty: 50.000, works: "K",
+    waitingProd: 0, steelMaking: 0, rolling: 0, annealing: 50.000, coating: 0,
+    sumStock: 0, awaitingShip: 0, loadingCompleted: 0,
+    usage: "CR", team: "A",
+    firstRolling: 0, secondRolling: 0, crCorrection: 0,
+    waitingReceiving: 0, waitingJudgement: 0,
+    shipments: [
+      { departureDate: "2026-04-30", qty: 25.000, vessel: "COSCO JAPAN" },
+      { departureDate: "2026-05-30", qty: 25.000, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" }
+    ]
+  },
+  {
+    country: "Japan", customer: "동양강판 (Dongyang Steel)", item: "FCE = HR",
+    poNo: "310102", orderNo: "02S7001202", destination: "Osaka",
+    grade: "SPHC", thickness: 2.3, width: 1500, length: 6000,
+    qty: 120.500, works: "K",
+    waitingProd: 0, steelMaking: 0, rolling: 120.500, annealing: 0, coating: 0,
+    sumStock: 0, awaitingShip: 0, loadingCompleted: 0,
+    usage: "HR", team: "B",
+    firstRolling: 0, secondRolling: 120.500, crCorrection: 0,
+    waitingReceiving: 0, waitingJudgement: 0,
+    shipments: [
+      { departureDate: "2026-05-15", qty: 60.000, vessel: "MERIDIAN OCEAN" },
+      { departureDate: "2026-06-15", qty: 60.500, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" }
+    ]
+  },
+  {
+    country: "Japan", customer: "동양강판 (Dongyang Steel)", item: "FCE = CR",
+    poNo: "310103", orderNo: "02S7001203", destination: "Tokyo",
+    grade: "SPCC", thickness: 0.8, width: 1200, length: 2438,
+    qty: 44.000, works: "K",
+    waitingProd: 0, steelMaking: 0, rolling: 0, annealing: 0, coating: 0,
+    sumStock: 12.000, awaitingShip: 32.000, loadingCompleted: 0,
+    usage: "CR", team: "A",
+    firstRolling: 0, secondRolling: 0, crCorrection: 0,
+    waitingReceiving: 0, waitingJudgement: 12.000,
+    shipments: [
+      { departureDate: "2026-04-18", qty: 44.000, vessel: "HOEGH OSAKA" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" }
+    ]
+  },
+  {
+    country: "Australia", customer: "Bluescope Steel", item: "GI",
+    poNo: "410201", orderNo: "03A8001001", destination: "Melbourne",
+    grade: "G450", thickness: 0.45, width: 900, length: 1800,
+    qty: 28.750, works: "P",
+    waitingProd: 0, steelMaking: 0, rolling: 0, annealing: 0, coating: 0,
+    sumStock: 0, awaitingShip: 0, loadingCompleted: 28.750,
+    usage: "GI", team: "B",
+    firstRolling: 0, secondRolling: 0, crCorrection: 0,
+    waitingReceiving: 0, waitingJudgement: 0,
+    shipments: [
+      { departureDate: "2026-03-28", qty: 28.750, vessel: "THORESEN PACIFIC" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" },
+      { departureDate: "", qty: 0, vessel: "" }
+    ]
+  }
+];
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+const ACCOUNTS = {
+  "dongyang": { pw: "steel2024", name: "동양강판 (Dongyang Steel)" },
+  "emw": { pw: "emw2024", name: "EMW Stahl Service GmbH" },
+  "bluescope": { pw: "blue2024", name: "Bluescope Steel" },
+  "posco": { pw: "admin2024", name: "관리자 (Admin)" }
+};
+
+let currentUser = null;
+let filteredData = [];
+
+function handleLogin(e) {
+  e.preventDefault();
+  const id = document.getElementById('userId').value.trim().toLowerCase();
+  const pw = document.getElementById('userPw').value;
+  const err = document.getElementById('loginError');
+
+  if (ACCOUNTS[id] && ACCOUNTS[id].pw === pw) {
+    err.style.display = 'none';
+    currentUser = { id, name: ACCOUNTS[id].name };
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('appPage').style.display = 'flex';
+    document.getElementById('welcomeMsg').textContent = currentUser.name + ' 님';
+    document.getElementById('lastUpdated').textContent =
+      '최종 업데이트: ' + new Date().toLocaleString('ko-KR');
+    initItems();
+    applyFilters();
+  } else {
+    err.style.display = 'block';
+  }
+}
+
+function handleLogout() {
+  currentUser = null;
+  document.getElementById('userId').value = '';
+  document.getElementById('userPw').value = '';
+  document.getElementById('appPage').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+}
+
+// ─── Items ────────────────────────────────────────────────────────────────────
+const ITEMS = [...new Set(ALL_DATA.map(d => d.item))];
+
+function initItems() {
+  const container = document.getElementById('itemCheckboxes');
+  container.innerHTML = '';
+  ITEMS.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `<input type="checkbox" id="item_${item}" value="${item}" checked onchange="syncCheckAll()">
+                     <label for="item_${item}">${item}</label>`;
+    container.appendChild(div);
+  });
+}
+
+function toggleAllItems(checked) {
+  ITEMS.forEach(item => {
+    const el = document.getElementById('item_' + item);
+    if (el) el.checked = checked;
+  });
+}
+
+function syncCheckAll() {
+  const all = ITEMS.every(item => document.getElementById('item_' + item)?.checked);
+  document.getElementById('checkAll').checked = all;
+}
+
+function getSelectedItems() {
+  return ITEMS.filter(item => {
+    const el = document.getElementById('item_' + item);
+    return el && el.checked;
+  });
+}
+
+// ─── Filters ─────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const country = document.getElementById('filterCountry').value;
+  const usage   = document.getElementById('filterUsage').value;
+  const team    = document.getElementById('filterTeam').value;
+  const format  = document.getElementById('filterFormat').value;
+  const items   = getSelectedItems();
+
+  filteredData = ALL_DATA.filter(d => {
+    if (country && d.country !== country) return false;
+    if (usage   && d.usage !== usage)     return false;
+    if (team    && d.team !== team)       return false;
+    if (format  && d.item !== format)     return false;
+    if (!items.includes(d.item))          return false;
+    return true;
+  });
+
+  renderSummary();
+}
+
+function resetFilters() {
+  document.getElementById('filterCountry').value = '';
+  document.getElementById('filterUsage').value = '';
+  document.getElementById('filterTeam').value = '';
+  document.getElementById('filterFormat').value = '';
+  document.getElementById('checkAll').checked = true;
+  toggleAllItems(true);
+  applyFilters();
+}
+
+// ─── Render Summary ───────────────────────────────────────────────────────────
+function prodStatus(d) {
+  if (d.loadingCompleted > 0) return '<span class="status-cell status-done">출하완료</span>';
+  if (d.awaitingShip > 0)     return '<span class="status-cell status-wip">출하대기</span>';
+  if (d.coating > 0)          return '<span class="status-cell status-wip">도금중</span>';
+  if (d.annealing > 0)        return '<span class="status-cell status-wip">소둔중</span>';
+  if (d.rolling > 0)          return '<span class="status-cell status-wip">압연중</span>';
+  if (d.steelMaking > 0)      return '<span class="status-cell status-wip">제강완료</span>';
+  return '<span class="status-cell status-p">설계대기</span>';
+}
+
+function fmt(v) { return v > 0 ? v.toFixed(3) : '-'; }
+
+function renderSummary() {
+  const tbody = document.getElementById('summaryBody');
+  document.getElementById('rowCount').textContent = filteredData.length + ' 건';
+
+  if (filteredData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="20" class="no-data">조회된 데이터가 없습니다.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filteredData.map(d => `
+    <tr>
+      <td>${d.country}</td>
+      <td>${d.customer}</td>
+      <td>${d.item}</td>
+      <td>${d.poNo}</td>
+      <td>${d.orderNo}</td>
+      <td>${d.destination}</td>
+      <td>${d.grade}</td>
+      <td class="numeric">${d.thickness}</td>
+      <td class="numeric">${d.width}</td>
+      <td class="numeric">${d.length}</td>
+      <td class="numeric">${d.qty.toFixed(3)}</td>
+      <td>${d.works}</td>
+      <td class="numeric">${fmt(d.waitingProd)}</td>
+      <td class="numeric">${fmt(d.steelMaking)}</td>
+      <td class="numeric">${fmt(d.rolling)}</td>
+      <td class="numeric">${fmt(d.annealing)}</td>
+      <td class="numeric">${fmt(d.coating)}</td>
+      <td class="numeric">${fmt(d.sumStock)}</td>
+      <td class="numeric">${fmt(d.awaitingShip)}</td>
+      <td class="numeric">${fmt(d.loadingCompleted)}</td>
+    </tr>
+  `).join('');
+}
+
+// ─── Excel Download (Detail) ──────────────────────────────────────────────────
+function downloadExcel() {
+  if (filteredData.length === 0) {
+    alert('조회된 데이터가 없습니다.');
+    return;
+  }
+
+  const headers = [
+    "국가\n(Country)", "수요가\n(Customer)", "제품\n(Item)",
+    "PO No\n(구매번호)", "Order No\n(주문번호)", "상세착지명\n(Destination)",
+    "규격\n(Grade)", "두께\n(Thickness)", "폭\n(Width)", "길이\n(Length)",
+    "주문량\n(Q'ty)", "소\n(Works)",
+    "설계대기\n(Waiting Production)", "제강\n(Finished Steel Making)",
+    "1차 압연대기\n(1st Rolling)", "2차압연\n(2nd Rolling)",
+    "소둔\n(Annealing)", "도금\n(Coating)",
+    "냉연정정\n(CR Rolling Correction)",
+    "입고대기\n(Waiting for receiving)", "입고누계\n(Sum of Stock)",
+    "입고판정\n(Waiting for Judgement)",
+    "출하대기\n(Awaiting Shipment)", "출하완료\n(Loading completed)",
+    "1차 출항일\n(1st Departure)", "1차 선적량\n(1st Q'ty)", "1차 선박명\n(1st Vessel)",
+    "2차 출항일\n(2nd Departure)", "2차 선적량\n(2nd Q'ty)", "2차 선박명\n(2nd Vessel)",
+    "3차 출항일\n(3rd Departure)", "3차 선적량\n(3rd Q'ty)", "3차 선박명\n(3rd Vessel)",
+    "4차 출항일\n(4th Departure)", "4차 선적량\n(4th Q'ty)", "4차 선박명\n(4th Vessel)",
+    "5차 출항일\n(5th Departure)", "5차 선적량\n(5th Q'ty)", "5차 선박명\n(5th Vessel)"
+  ];
+
+  const rows = filteredData.map(d => [
+    d.country, d.customer, d.item, d.poNo, d.orderNo, d.destination,
+    d.grade, d.thickness, d.width, d.length, d.qty, d.works,
+    d.waitingProd, d.steelMaking,
+    d.firstRolling, d.secondRolling,
+    d.annealing, d.coating,
+    d.crCorrection,
+    d.waitingReceiving, d.sumStock,
+    d.waitingJudgement,
+    d.awaitingShip, d.loadingCompleted,
+    ...d.shipments.flatMap(s => [s.departureDate, s.qty || '', s.vessel])
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  const wsData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:12},{wch:28},{wch:12},{wch:12},{wch:16},{wch:16},
+    {wch:8},{wch:8},{wch:8},{wch:8},{wch:10},{wch:6},
+    {wch:12},{wch:14},{wch:12},{wch:10},{wch:10},{wch:10},
+    {wch:14},{wch:12},{wch:12},{wch:14},{wch:12},{wch:14},
+    {wch:14},{wch:10},{wch:18},
+    {wch:14},{wch:10},{wch:18},
+    {wch:14},{wch:10},{wch:18},
+    {wch:14},{wch:10},{wch:18},
+    {wch:14},{wch:10},{wch:18}
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, "생산현황 상세");
+
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0,10);
+  XLSX.writeFile(wb, `생산현황_상세_${dateStr}.xlsx`);
+}
+</script>
+</body>
+</html>
